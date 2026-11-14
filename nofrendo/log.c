@@ -129,7 +129,11 @@ void log_assert(int expr, int line, const char *file, char *msg)
    else
       log_printf("ASSERT: line %d of %s\n", line, file);
 
+#if defined(__XTENSA__)
    asm("break.n 1");
+#else
+   __builtin_trap();
+#endif
 //   exit(-1);
 }
 

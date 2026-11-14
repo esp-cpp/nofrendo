@@ -38,15 +38,21 @@ extern "C" int osd_installtimer(int frequency, void *func, int funcsize, void *c
 */
 static void (*audio_callback)(void *buffer, int length) = NULL;
 
+// (nes.cpp sets the HAL to this rate)
+static constexpr int NES_AUDIO_SAMPLE_RATE = 22050;
 static int num_channels = 2;
-static int num_samples = 0;
+static int num_samples = 0; // per frame, mono
 static int num_bytes = 0;
 static int16_t *audio_frame = nullptr;
 
 
 extern "C" void do_audio_frame() {
   if (audio_callback == NULL) return;
+  // the APU makes one frame of mono samples; the HAL plays stereo
   audio_callback(audio_frame, num_samples);
+  for (int i = num_samples - 1; i >= 0; i--) {
+    audio_frame[2 * i] = audio_frame[2 * i + 1] = audio_frame[i];
+  }
   BoxEmu::get().play_audio(reinterpret_cast<uint8_t*>(audio_frame), num_bytes);
 }
 
@@ -68,8 +74,8 @@ static void osd_stopsound(void)
 
 static int osd_init_sound(void) {
   if (audio_frame == nullptr) {
-    num_samples = BoxEmu::get().audio_sample_rate() * num_channels / NES_REFRESH_RATE;
-    num_bytes = num_samples * sizeof(int16_t);
+    num_samples = NES_AUDIO_SAMPLE_RATE / NES_REFRESH_RATE;
+    num_bytes = num_samples * num_channels * sizeof(int16_t);
     audio_frame = (int16_t*)heap_caps_malloc(num_bytes, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
   }
   audio_callback = NULL;
@@ -78,7 +84,7 @@ static int osd_init_sound(void) {
 
 extern "C" void osd_getsoundinfo(sndinfo_t *info)
 {
-  info->sample_rate = BoxEmu::get().audio_sample_rate();
+  info->sample_rate = NES_AUDIO_SAMPLE_RATE;
   info->bps = 16;
 }
 

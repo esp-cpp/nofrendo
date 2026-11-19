@@ -155,7 +155,20 @@ uint8 input_get(int types)
 /* register an input type */
 void input_register(nesinput_t *input)
 {
+   int i;
+
    if (NULL == input)
+      return;
+
+   /* every game registers its inputs again (event_init() at each NES start)
+   ** and nothing unregisters them: register an input once, and never past
+   ** the table (the 17th game wrote, then read, past nes_input[]) */
+   for (i = 0; i < active_entries; i++)
+   {
+      if (nes_input[i] == input)
+         return;
+   }
+   if (active_entries >= MAX_CONTROLLERS)
       return;
 
    nes_input[active_entries] = input;
